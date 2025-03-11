@@ -74,7 +74,7 @@ Let's first fit a Bayesian regression model predicting log reaction time from mo
 
 Notice that the core model syntax is *exactly the same* as for lme4.
 
-```{r, cache=TRUE}
+```{r, cache=TRUE, warning=FALSE, message=FALSE}
 #this takes a while to fit - note the use of caching to save time on future iterations
 rt_mod_log <- brm(log_rt ~ 1 + modality + 
                       (1 + modality|PID),
@@ -107,19 +107,11 @@ If the model fits the data well, then data we generate (simulate) from the model
 pp_check(rt_mod_log)
 ```
 
-### Extract Rhat and Effective Sample Size
-
-```{r}
-# Extracting and tidying Rhat and ESS
-
-```
-
 ### Plot MCMC Samples
 
 ```{r}
-plot(rt_mod_log)
+#plot(rt_mod_log)
 ```
-
 
 ### Plot the modality effect
 
@@ -138,7 +130,6 @@ bayesplot::mcmc_areas(posterior,
            # arbitrary threshold for shading probability mass
            prob = 0.83) 
 ```
-
 
 ### Prettier
 
@@ -162,13 +153,11 @@ post_data %>%
   theme(legend.position="none")
 ```
 
-
 ## Specify model structure more explicitly
 
 Second, Bayesian models are extremely flexible, but that means we also need to specify many aspects of our model more explicitly. 
 Two key features of the model to specify are the model family and the priors.
 Can you figure out what family was used in the above example?
-
 
 ```{r}
 #extract the family
@@ -184,14 +173,43 @@ Next, we show an example of how to set the model parameters (coefficients, SDs a
 
 ### Specify the prior
 
-
 ```{r}
 #set the prior
-
+priors <-c(
+  set_prior("normal(6.9, 1)", class = "Intercept"), #normal distribution for intercept around ~ log(1000) ms (just for illustration)
+  set_prior("normal(0, 1)", class = "b"), # normal distribution for fixed-effect coefficients
+  set_prior("normal(0, 0.5)", class = "sd"), #normal distribution for sd/ random effects
+  set_prior("lkj(2)", class = "L")) # lkj distribution for covariance matrix
 ```
 
 ### Fit the model with family and prior more explicit
 
+```{r, cache=TRUE, warning=FALSE, message=FALSE}
+#this takes a while to fit - note the use of caching to save time on future iterations
+rt_mod_log_w_priors <- brm(log_rt ~ 1 + modality + 
+                      (1 + modality|PID),
+                    data = rt_data,
+                  prior=priors, #our specified priors
+                  family=gaussian() #could also set log as link function
+                  )
+summary(rt_mod_log_w_priors)
+```
+
+### Plot
+
+```{r}
+post_data_w_priors <- rt_data %>% 
+  data_grid(modality) %>%
+  add_epred_draws(rt_mod_log_w_priors, ndraws = 4000, re_formula = NA)
+
+post_data_w_priors %>%
+  ggplot(aes(x=modality,y=.epred,fill=modality))+
+  stat_halfeye()+
+  ylab("Log Reaction Time (ms)")+
+  xlab("Modality")+
+  theme_minimal()+
+  theme(legend.position="none")
+```
 
 # Session Info
 
